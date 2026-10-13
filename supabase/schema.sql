@@ -76,14 +76,14 @@ drop policy if exists "Active journeys public read" on public.journeys;
 create policy "Active journeys public read" on public.journeys for select to anon, authenticated using (status = 'active' or (select auth.uid()) = user_id);
 drop policy if exists "Users create own journeys" on public.journeys;
 create policy "Users create own journeys" on public.journeys for insert to authenticated with check (
-  (select auth.uid()) = user_id and travel_date >= (now() at time zone 'UTC')::date
+  (select auth.uid()) = user_id and travel_date >= (now() at time zone 'Asia/Kolkata')::date
 );
 drop policy if exists "Users update own journeys" on public.journeys;
 create policy "Users update own journeys" on public.journeys for update to authenticated
 using ((select auth.uid()) = user_id)
 with check (
   (select auth.uid()) = user_id
-  and (status = 'cancelled' or travel_date >= (now() at time zone 'UTC')::date)
+  and (status = 'cancelled' or travel_date >= (now() at time zone 'Asia/Kolkata')::date)
 );
 drop policy if exists "Users delete own journeys" on public.journeys;
 create policy "Users delete own journeys" on public.journeys for delete to authenticated using ((select auth.uid()) = user_id);
