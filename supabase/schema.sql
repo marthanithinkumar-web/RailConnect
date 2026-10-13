@@ -26,7 +26,7 @@ for each row execute procedure public.handle_new_user();
 
 create table if not exists public.journeys (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
   origin text not null check (char_length(trim(origin)) between 2 and 100),
   destination text not null check (char_length(trim(destination)) between 2 and 100),
   travel_date date not null,
@@ -43,8 +43,8 @@ create index if not exists journeys_owner_idx on public.journeys (user_id, creat
 create table if not exists public.conversations (
   id uuid primary key default gen_random_uuid(),
   journey_id uuid not null references public.journeys(id) on delete cascade,
-  requester_id uuid not null references auth.users(id) on delete cascade,
-  owner_id uuid not null references auth.users(id) on delete cascade,
+  requester_id uuid not null references public.profiles(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   constraint different_conversation_members check (requester_id <> owner_id),
   constraint one_conversation_per_requester_journey unique (journey_id, requester_id)
@@ -68,7 +68,7 @@ alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 
 drop policy if exists "Profiles readable to signed-in users" on public.profiles;
-create policy "Profiles readable to signed-in users" on public.profiles for select to authenticated using (true);
+create policy "Public display names readable" on public.profiles for select to anon, authenticated using (true);
 drop policy if exists "Users update own profile" on public.profiles;
 create policy "Users update own profile" on public.profiles for update to authenticated using ((select auth.uid()) = id) with check ((select auth.uid()) = id);
 
@@ -127,7 +127,8 @@ grant execute on function public.start_conversation(uuid) to authenticated;
 
 grant select on public.journeys to anon, authenticated;
 grant insert, update, delete on public.journeys to authenticated;
-grant select, update on public.profiles to authenticated;
+grant select on public.profiles to anon, authenticated;
+grant update on public.profiles to authenticated;
 grant select, insert on public.conversations to authenticated;
 grant select, insert on public.messages to authenticated;
 
