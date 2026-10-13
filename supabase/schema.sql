@@ -75,9 +75,16 @@ create policy "Users update own profile" on public.profiles for update to authen
 drop policy if exists "Active journeys public read" on public.journeys;
 create policy "Active journeys public read" on public.journeys for select to anon, authenticated using (status = 'active' or (select auth.uid()) = user_id);
 drop policy if exists "Users create own journeys" on public.journeys;
-create policy "Users create own journeys" on public.journeys for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy "Users create own journeys" on public.journeys for insert to authenticated with check (
+  (select auth.uid()) = user_id and travel_date >= (now() at time zone 'UTC')::date
+);
 drop policy if exists "Users update own journeys" on public.journeys;
-create policy "Users update own journeys" on public.journeys for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy "Users update own journeys" on public.journeys for update to authenticated
+using ((select auth.uid()) = user_id)
+with check (
+  (select auth.uid()) = user_id
+  and (status = 'cancelled' or travel_date >= (now() at time zone 'UTC')::date)
+);
 drop policy if exists "Users delete own journeys" on public.journeys;
 create policy "Users delete own journeys" on public.journeys for delete to authenticated using ((select auth.uid()) = user_id);
 
@@ -89,6 +96,8 @@ create policy "Requester starts own conversations" on public.conversations for i
   and exists (select 1 from public.journeys j where j.id = journey_id and j.user_id = owner_id and j.status = 'active')
 );
 -- Conversation creation is performed through the validated RPC below; clients cannot update membership.
+-- Date validation is enforced by RLS as well as the browser, so direct API requests
+-- cannot publish a past journey or reactivate one with a past travel date.
 drop policy if exists "Members read conversation messages" on public.messages;
 create policy "Members read conversation messages" on public.messages for select to authenticated using (
   exists (select 1 from public.conversations c where c.id = conversation_id and (select auth.uid()) in (c.requester_id,c.owner_id))
